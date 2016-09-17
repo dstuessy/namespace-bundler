@@ -10,13 +10,13 @@ module.exports = (function () {
         let entryPaths = entryNames.map(entryName => `${dirPath}/${entryName}`);
         let filePaths = entryPaths.filter(entryPath => /\.js$/.test(entryPath));
         let dirPaths = entryPaths.filter(entryPath => fs.lstatSync(entryPath).isDirectory());
-        let leftOverFilePaths = dirPaths.reduce(
+        let leftoverFilePaths = dirPaths.reduce(
             (filePaths, dirPath) => filePaths.concat(getFilePaths(dirPath)),
             filePaths
         );
 
         return filePaths
-            .concat(leftOverFilePaths)
+            .concat(leftoverFilePaths)
             .filter((filePath, i, self) => self.indexOf(filePath) === i);
     }
 

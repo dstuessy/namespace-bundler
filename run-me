@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+const Bundler = require('./namespace-bundler.js');
+
+Bundler.bundle('src', () => {
+    console.log("done");
+});

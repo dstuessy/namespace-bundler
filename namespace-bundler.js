@@ -1,22 +1,30 @@
 const fs = require('fs');
 
-module.exports = (function() {
+module.exports = (function () {
     'use strict';
 
     const Bundler = {};
 
-    function getFilePaths(dirPath, callback) {
-        fs.readdir(filePath, (err, files) => {
-            if (err) {
-                console.log(err);
-                return;
-            }
-            
-        });
+    function getFilePaths(dirPath) {
+        let entryNames = fs.readdirSync(dirPath);
+        let entryPaths = entryNames.map(entryName => `${dirPath}/${entryName}`);
+        let filePaths = entryPaths.filter(entryPath => /\.js$/.test(entryPath));
+        let dirPaths = entryPaths.filter(entryPath => fs.lstatSync(entryPath).isDirectory());
+        let leftOverFilePaths = dirPaths.reduce(
+            (filePaths, dirPath) => filePaths.concat(getFilePaths(dirPath)),
+            filePaths
+        );
+
+        return filePaths
+            .concat(leftOverFilePaths)
+            .filter((filePath, i, self) => self.indexOf(filePath) === i);
     }
 
-    Bundler.bundle = function bundle(filePath, callback) {
+    Bundler.bundle = function bundle(dirPath, callback) {
+        let filePaths = getFilePaths(dirPath, callback);
+
+        console.log(filePaths);
     };
 
     return Bundler;
-}());
+} ());

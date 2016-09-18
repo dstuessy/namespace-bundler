@@ -43,8 +43,10 @@ module.exports = (function () {
             let dependencyRegex = RegExp(`[^\w\.](${varName})`);
             let dependency = (fileContent.match(dependencyRegex) || [])[1] || null;
 
-            if (dependency && dependency !== fileModule.varName ) {
-                return dependencies.concat([dependency]);
+            if (dependency && dependency !== fileModule.varName) {
+                return dependencies
+                    .concat([dependency])
+                    .filter(isUnique);
             }
 
             return dependencies;

@@ -36,11 +36,19 @@ module.exports = (function () {
         return fileContent.match(varRegEx)[1] || "";
     }
 
-    function getDependencies(filePath, fileNames) {
-        let fileContent = fs.readFileSync(filePath).toString();
-        let dependencyRegex = RegExp(`(${file})`, 'i');
+    function getDependencies(fileModule, varNames) {
+        let fileContent = fs.readFileSync(fileModule.filePath).toString();
 
-        return fileContent;
+        return varNames.reduce((dependencies, varName) => {
+            let dependencyRegex = RegExp(`[^\w\.](${varName})`);
+            let dependency = (fileContent.match(dependencyRegex) || [])[1] || null;
+
+            if (dependency && dependency !== fileModule.varName ) {
+                return dependencies.concat([dependency]);
+            }
+
+            return dependencies;
+        }, []);
     }
 
     function getFilePaths(dirPath) {
@@ -68,12 +76,11 @@ module.exports = (function () {
             }
         }).map(fileModule => objectSet(
             fileModule, "varName", getVarName(fileModule.filePath)
+        )).map((fileModule, i, modules) => objectSet(
+            fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
         ));
-        // .map(fileModule => objectSet(
-        //     fileModule, "dependencies", getDependencies(fileModule.filePath)
-        // ));
 
-        console.log(getDependencies(fileModules[0].filePath));
+        console.log(fileModules);
     };
 
     return Bundler;

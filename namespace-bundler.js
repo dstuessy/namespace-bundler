@@ -98,9 +98,6 @@ module.exports = (function () {
             let matches = fileContent.match(dependencyRegex) || [];
             let dependency = matches[1] || null;
 
-            if (fileModule.filePath === "src/kidly/utilities/list/kidly.utilities.list.js")
-                console.log(matches);
-
             if (dependency && dependency !== fileModule.varName) {
                 return dependencies
                     .concat([dependency])

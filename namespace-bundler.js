@@ -33,17 +33,18 @@ module.exports = (function () {
         return fileModuleA.dependencies.indexOf(fileModuleB.varName) >= 0;
     }
 
-    // function quickSort(fileModules) {
-    //     let pivot = fileModules[0];
-    //     let tail = fileModules.slice(1);
-    //     let lessThanPivot = tail.filter(fileModule => isDependent());
+    function quickSort(fileModules) {
+        let pivot = fileModules[0];
+        let tail = fileModules.slice(1);
+        let dependentOnPivot = tail.filter(fileModule => isDependent(fileModule, pivot));
+        let independentOfPivot = tail.filter(fileModule => !isDependent(fileModule, pivot));
 
-    //     if (fileModules.length === 0) {
-    //         return [];
-    //     }
+        if (fileModules.length === 0) {
+            return [];
+        }
 
-    //     return quickSort(lessThanPivot).concat([pivot]).concat(greaterThanPivot);
-    // }
+        return quickSort(independentOfPivot).concat([pivot]).concat(quickSort(dependentOnPivot));
+    }
 
     function treeInsert(insertNode, treeNode) {
         let insertModule = insertNode.value;
@@ -84,16 +85,21 @@ module.exports = (function () {
         let fileName = path.basename(filePath, '.js');
         let regexEscapedFileName = fileName.replace(/\./g, '\\.');
         let varRegEx = RegExp(`(${regexEscapedFileName})\ ?=`, 'i');
+        let matches = fileContent.match(varRegEx) || [];
 
-        return fileContent.match(varRegEx)[1] || "";
+        return matches[1] || "";
     }
 
     function getDependencies(fileModule, varNames) {
         let fileContent = fs.readFileSync(fileModule.filePath).toString();
 
         return varNames.reduce((dependencies, varName) => {
-            let dependencyRegex = RegExp(`[^\w\.](${varName})`);
-            let dependency = (fileContent.match(dependencyRegex) || [])[1] || null;
+            let dependencyRegex = RegExp(`[^\w\.]?(${varName})`);
+            let matches = fileContent.match(dependencyRegex) || [];
+            let dependency = matches[1] || null;
+
+            if (fileModule.filePath === "src/kidly/utilities/list/kidly.utilities.list.js")
+                console.log(matches);
 
             if (dependency && dependency !== fileModule.varName) {
                 return dependencies
@@ -132,14 +138,15 @@ module.exports = (function () {
             fileModule, "varName", getVarName(fileModule.filePath)
         )).map((fileModule, i, modules) => objectSet(
             fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
-        )).map(fileModule => trimDependencies(fileModule));
+        ));//.map(fileModule => trimDependencies(fileModule));
         // let aModule = fileModules.find(fileModule => fileModule.varName === "P.Collision");
         // let vectorModule = fileModules.find(fileModule => fileModule.varName === "P.Vector");
-        let sortedFileModules = fileModules.sort((fileModuleA, fileModuleB) => {
-            let dependent = isDependent(fileModuleB, fileModuleA);
+        // let sortedFileModules = fileModules.sort((fileModuleA, fileModuleB) => {
+        //     let dependent = isDependent(fileModuleB, fileModuleA);
 
-            return dependent ? 1 : -1;
-        });
+        //     return dependent ? 1 : -1;
+        // });
+        let sortedFileModules = quickSort(fileModules);
         // let sortedFileModules = sortFileModules(fileModules);
         // let sortedFileModules = fileModules.reduce((modules, fileModule, i) => {
         //     let sortedVarNames = modules.sorted.map(m => m.varName);

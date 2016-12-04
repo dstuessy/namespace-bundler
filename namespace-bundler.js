@@ -135,8 +135,12 @@ module.exports = (function () {
             fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
         ));
         let sortedFileModules = quickSort(fileModules);
+        let fileModulesMissed = fileModules.length - sortedFileModules.length;
+        global.includesFileModule = includesFileModule;
         // let sortedFileModules = dep_res(fileModules);
         console.log(validateDependencies(sortedFileModules));
+        console.log(fileModulesMissed);
+        console.log(sortedFileModules);
         let sortedFileContents = sortedFileModules.map(fileModule => fs.readFileSync(fileModule.filePath).toString());
         let bundledFileContents = sortedFileContents.reduce((bundle, fileContents) => `${bundle}\n\n\n${fileContents}`, '');
 

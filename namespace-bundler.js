@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const mkdirp = require('mkdirp');
 
 module.exports = (function () {
     'use strict';
@@ -27,21 +28,54 @@ module.exports = (function () {
         return list.indexOf(filePath) === i;
     }
 
+    function fileModuleEqual(fileModuleA, fileModuleB) {
+        return fileModuleA.varName === fileModuleB.varName;
+    }
+
+    function includesFileModule(fileModules, fileModule) {
+        return fileModules.some(fileModuleB => fileModuleEqual(fileModule));
+    }
+
+    function getFileModuleIndex(fileModule, fileModules) {
+        return fileModules.findIndex(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
+    }
+
     function isDependent(fileModuleA, fileModuleB) {
         return fileModuleA.dependencies.indexOf(fileModuleB.varName) >= 0;
     }
 
     function quickSort(fileModules) {
-        let pivot = fileModules[0];
-        let tail = fileModules.slice(1);
-        let dependentOnPivot = tail.filter(fileModule => isDependent(fileModule, pivot));
-        let independentOfPivot = tail.filter(fileModule => !isDependent(fileModule, pivot));
-
         if (fileModules.length === 0) {
             return [];
         }
 
-        return quickSort(independentOfPivot).concat([pivot]).concat(quickSort(dependentOnPivot));
+        let pivot = fileModules[0];
+        let tail = fileModules.slice(1);
+        let dependentOnPivot = tail.filter(fileModule => isDependent(fileModule, pivot));
+        let pivotIsDependentOn = tail.filter(fileModule => isDependent(pivot, fileModule));
+
+        return quickSort(pivotIsDependentOn).concat([pivot]).concat(quickSort(dependentOnPivot));
+    }
+
+    function dep_res(fileModules) {
+        if (fileModules.length < 1)
+            return [];
+
+        let first = fileModules[0];
+        let deps = first.dependencies;
+        let tail = fileModules.slice(1)
+        .filter(fileModule => !includesFileModule(deps, fileModule));
+
+        return dep_res(tail).concat(dep_res(deps)).concat(deps).concat([first]);
+    }
+
+    function validateDependencies(fileModules) {
+        return fileModules.every((fileModule) => {
+            let fileModuleIndex = getFileModuleIndex(fileModule, fileModules);
+            return fileModule.dependencies.every(dependency => {
+                return getFileModuleIndex(dependency, fileModules) < fileModuleIndex;
+            });
+        });
     }
 
     function getVarName(filePath) {
@@ -101,7 +135,18 @@ module.exports = (function () {
             fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
         ));
         let sortedFileModules = quickSort(fileModules);
-        console.log(sortedFileModules);
+        // let sortedFileModules = dep_res(fileModules);
+        console.log(validateDependencies(sortedFileModules));
+        let sortedFileContents = sortedFileModules.map(fileModule => fs.readFileSync(fileModule.filePath).toString());
+        let bundledFileContents = sortedFileContents.reduce((bundle, fileContents) => `${bundle}\n\n\n${fileContents}`, '');
+
+        mkdirp('dist', err => {
+            if (err)
+                throw new Error(err);
+            else {
+                fs.writeFileSync('dist/bundle.js', bundledFileContents);
+            }
+        });
     };
 
     return Bundler;

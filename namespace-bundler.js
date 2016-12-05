@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
+const Graph = require('./graph.js');
 
 module.exports = (function () {
     'use strict';
@@ -10,10 +11,16 @@ module.exports = (function () {
     function cloneObj(obj) {
         let proto = Object.getPrototypeOf(obj);
         let clone = Object.create(proto);
+        let isArray = Array.isArray(obj);
 
         return Object.keys(obj).reduce((clone, key) => {
             let val = obj[key];
-            clone[key] = val;
+
+            if (isArray)
+                clone.push(val);
+            else
+                clone[key] = val;
+
             return clone;
         }, clone);
     }
@@ -28,54 +35,76 @@ module.exports = (function () {
         return list.indexOf(filePath) === i;
     }
 
+    function isImmediateDependency(varName, dependencies) {
+        let combinedDependencies = dependencies.reduce((combined, varName) => combined + varName, "");
+        let match = combinedDependencies.match(RegExp(varName, "g"));
+        let len = (match || []).length;
+        return len === 1;
+    }
+
     function fileModuleEqual(fileModuleA, fileModuleB) {
         return fileModuleA.varName === fileModuleB.varName;
     }
 
     function includesFileModule(fileModules, fileModule) {
-        return fileModules.some(fileModuleB => fileModuleEqual(fileModule));
+        return fileModules.some(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
     }
 
     function getFileModuleIndex(fileModule, fileModules) {
-        return fileModules.findIndex(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
+        return fileModules.findIndex(fileModuleB => fileModuleEqual(fileModuleB, fileModule));
     }
 
     function isDependent(fileModuleA, fileModuleB) {
         return fileModuleA.dependencies.indexOf(fileModuleB.varName) >= 0;
     }
 
-    function quickSort(fileModules) {
-        if (fileModules.length === 0) {
-            return [];
-        }
-
-        let pivot = fileModules[0];
-        let tail = fileModules.slice(1);
-        let dependentOnPivot = tail.filter(fileModule => isDependent(fileModule, pivot));
-        let pivotIsDependentOn = tail.filter(fileModule => isDependent(pivot, fileModule));
-
-        return quickSort(pivotIsDependentOn).concat([pivot]).concat(quickSort(dependentOnPivot));
+    function isBefore(fileModules, fileModuleA, fileModuleB) {
+        let indexA = getFileModuleIndex(fileModuleA, fileModules);
+        let indexB = getFileModuleIndex(fileModuleB, fileModules);
+        return indexA < indexB;
     }
 
-    function dep_res(fileModules) {
-        if (fileModules.length < 1)
-            return [];
-
-        let first = fileModules[0];
-        let deps = first.dependencies;
-        let tail = fileModules.slice(1)
-        .filter(fileModule => !includesFileModule(deps, fileModule));
-
-        return dep_res(tail).concat(dep_res(deps)).concat(deps).concat([first]);
-    }
-
-    function validateDependencies(fileModules) {
-        return fileModules.every((fileModule) => {
+    function validateDependencyOrder(fileModules) {
+        return fileModules.every(fileModule => {
             let fileModuleIndex = getFileModuleIndex(fileModule, fileModules);
-            return fileModule.dependencies.every(dependency => {
-                return getFileModuleIndex(dependency, fileModules) < fileModuleIndex;
+            let everyDependencyIsBefore = fileModule.dependencies.every(dependencyVarName => {
+                let dependencyModule = {
+                    varName: dependencyVarName
+                };
+                return isBefore(fileModules, dependencyModule, fileModule);
             });
+
+            console.log(everyDependencyIsBefore, fileModule.varName, fileModule.dependencies);
+
+            return everyDependencyIsBefore;
         });
+    }
+
+    function getHighestDependency(moduleGraph) {
+        let rtrnVal = moduleGraph.findVertex((vertex, lastVertex) => {
+            lastVertex = lastVertex || { dependencies: [] };
+            return vertex.dependencies.length >= lastVertex.dependencies.length;
+        });
+        return rtrnVal;
+    }
+
+    function dep_res(moduleGraph) {
+        let highestDependency = getHighestDependency(moduleGraph);
+        let lowerDependencies = moduleGraph.remove(highestDependency.varName);
+
+        return [highestDependency].concat(dep_res(lowerDependencies));
+    }
+
+    function quickSort(predicate, items) {
+        if (items.length === 0)
+            return [];
+
+        let pivot = items[0];
+        let tail = items.slice(1);
+        let lessThanPivot = tail.filter(item => predicate(item, pivot));
+        let greaterThanPivot = tail.filter(item => !predicate(item, pivot));
+
+        return quickSort(predicate, lessThanPivot).concat([pivot]).concat(quickSort(predicate, greaterThanPivot));
     }
 
     function getVarName(filePath) {
@@ -99,7 +128,8 @@ module.exports = (function () {
             if (dependency && dependency !== fileModule.varName) {
                 return dependencies
                     .concat([dependency])
-                    .filter(isUnique);
+                    .filter(isUnique)
+                    .filter((varName, i, dependencies) => isImmediateDependency(varName, dependencies));
             }
 
             return dependencies;
@@ -134,13 +164,23 @@ module.exports = (function () {
         )).map((fileModule, i, modules) => objectSet(
             fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
         ));
-        let sortedFileModules = quickSort(fileModules);
-        let fileModulesMissed = fileModules.length - sortedFileModules.length;
-        global.includesFileModule = includesFileModule;
+        let fileModuleVertices = fileModules.reduce((vertices, fileModule) => {
+            let key = fileModule.varName;
+            vertices[key] = fileModule;
+            return vertices;
+        }, {});
+        let fileModuleEdges = fileModules.reduce((edges, fileModule) => {
+            return fileModule.dependencies.reduce((edges, dependencyVarName) => {
+                let edgeString = fileModule.varName + '->' + dependencyVarName;
+                edges[edgeString] = true;
+                return edges;
+            }, edges);
+        }, {});
+        let fileModuleGraph = Graph(fileModuleVertices, fileModuleEdges);
+        let sortedFileModules = dep_res(fileModuleGraph);
         // let sortedFileModules = dep_res(fileModules);
-        console.log(validateDependencies(sortedFileModules));
-        console.log(fileModulesMissed);
-        console.log(sortedFileModules);
+        console.log();
+        console.log(validateDependencyOrder(sortedFileModules));
         let sortedFileContents = sortedFileModules.map(fileModule => fs.readFileSync(fileModule.filePath).toString());
         let bundledFileContents = sortedFileContents.reduce((bundle, fileContents) => `${bundle}\n\n\n${fileContents}`, '');
 

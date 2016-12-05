@@ -4,15 +4,10 @@ module.exports = (function () {
     function cloneObj(obj) {
         let proto = Object.getPrototypeOf(obj);
         let clone = Object.create(proto);
-        let isArray = Array.isArray(obj);
-        
+
         return Object.keys(obj).reduce((clone, key) => {
             let val = obj[key];
-
-            if (isArray)
-                clone.push(val);
-            else
-                clone[key] = val;
+            clone[key] = val;
 
             return clone;
         }, clone);
@@ -58,11 +53,20 @@ module.exports = (function () {
     };
 
     proto.insertVertex = function (key, value) {
-        return this.insertVerteces({ key: value });
+        let verteces = {};
+
+        verteces[key] = value;
+
+        return this.insertVerteces(verteces);
     };
 
-    proto.insertEdge = function (source, destination) {
-        return this.insertEdges({ source: destination });
+    proto.insertEdge = function (source, destination, value = {}) {
+        let edges = {};
+        let edgeKey = `${source}->${destination}`;
+
+        edges[edgeKey] = value;
+
+        return this.insertEdges(edges);
     };
 
     proto.remove = function (deleteKey) {
@@ -78,13 +82,29 @@ module.exports = (function () {
     };
 
     proto.findVertex = function (predicate) {
-        let rtrnVal = reduceObj((foundVertex, vertex) => {
+        return reduceObj((foundVertex, vertex) => {
             if (predicate(vertex, foundVertex, this))
                 return vertex;
-            else 
+            else
                 return foundVertex;
         }, null, this.verteces);
-        return rtrnVal;
+    };
+
+    proto.findEdges = function (predicate) {
+        return reduceObj((foundEdges, value, key) => {
+            let pair = key.split('->');
+            let source = pair[0];
+            let destination = pair[1];
+
+            if (predicate(value, source, destination))
+                foundEdges[key] = value;
+
+            return foundEdges;
+        }, {}, this.edges);
+    };
+
+    proto.isEmpty = function () {
+        return Object.keys(this.verteces).length === 0 && Object.keys(this.edges) === 0;
     };
 
     function Graph(verteces = {}, edges = {}) {

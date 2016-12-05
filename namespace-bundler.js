@@ -31,6 +31,10 @@ module.exports = (function () {
         return clone;
     }
 
+    function objectReduce(fn, start, obj) {
+        return Object.keys(obj).reduce((acc, key) => fn(acc, obj[key], key), start);
+    }
+
     function isUnique(filePath, i, list) {
         return list.indexOf(filePath) === i;
     }
@@ -74,25 +78,30 @@ module.exports = (function () {
                 return isBefore(fileModules, dependencyModule, fileModule);
             });
 
-            console.log(everyDependencyIsBefore, fileModule.varName, fileModule.dependencies);
+            console.log(everyDependencyIsBefore, fileModule.filePath, fileModule.dependencies);
 
             return everyDependencyIsBefore;
         });
     }
 
-    function getHighestDependency(moduleGraph) {
-        let rtrnVal = moduleGraph.findVertex((vertex, lastVertex) => {
-            lastVertex = lastVertex || { dependencies: [] };
-            return vertex.dependencies.length >= lastVertex.dependencies.length;
-        });
-        return rtrnVal;
+    function getHighestDependency(fileModules) {
+        let vertex = fileModules.reduce((foundFileModule, fileModule, fileModules) => {
+            return fileModule.dependencies.length >= foundFileModule.dependencies.length
+                ? fileModule : foundFileModule;
+        }, fileModules[0]);
+        return vertex;
     }
 
-    function dep_res(moduleGraph) {
-        let highestDependency = getHighestDependency(moduleGraph);
-        let lowerDependencies = moduleGraph.remove(highestDependency.varName);
+    function dep_res(fileModules) {
+        if (fileModules.length === 0)
+            return [];
 
-        return [highestDependency].concat(dep_res(lowerDependencies));
+        let highestDependency = getHighestDependency(fileModules);
+        let lowerDependencies = fileModules.filter(fileModule => fileModule.filePath !== highestDependency.filePath);
+
+        console.log(highestDependency.filePath);
+
+        return dep_res(lowerDependencies).concat([highestDependency]);
     }
 
     function quickSort(predicate, items) {
@@ -128,8 +137,8 @@ module.exports = (function () {
             if (dependency && dependency !== fileModule.varName) {
                 return dependencies
                     .concat([dependency])
-                    .filter(isUnique)
-                    .filter((varName, i, dependencies) => isImmediateDependency(varName, dependencies));
+                    .filter(isUnique);
+                // .filter((varName, i, dependencies) => isImmediateDependency(varName, dependencies));
             }
 
             return dependencies;
@@ -162,22 +171,31 @@ module.exports = (function () {
         }).map(fileModule => objectSet(
             fileModule, "varName", getVarName(fileModule.filePath)
         )).map((fileModule, i, modules) => objectSet(
-            fileModule, "dependencies", getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
+            fileModule,
+            "dependencies",
+            getDependencies(fileModule, modules.map(fileModule => fileModule.varName))
+        )).map((fileModule, i, modules) => objectSet(
+            fileModule,
+            "dependencies",
+            fileModule.dependencies.map(varName =>
+                modules.find(fileModule => fileModule.varName === varName).filePath
+            )
         ));
         let fileModuleVertices = fileModules.reduce((vertices, fileModule) => {
-            let key = fileModule.varName;
+            let key = fileModule.filePath;
             vertices[key] = fileModule;
             return vertices;
         }, {});
         let fileModuleEdges = fileModules.reduce((edges, fileModule) => {
             return fileModule.dependencies.reduce((edges, dependencyVarName) => {
-                let edgeString = fileModule.varName + '->' + dependencyVarName;
-                edges[edgeString] = true;
+                let edgeString = fileModule.filePath + '->' + dependencyVarName;
+                edges[edgeString] = {};
                 return edges;
             }, edges);
-        }, {});
-        let fileModuleGraph = Graph(fileModuleVertices, fileModuleEdges);
-        let sortedFileModules = dep_res(fileModuleGraph);
+        }, []);
+        // let fileModuleGraph = Graph(fileModuleVertices, fileModuleEdges);
+        console.log(getHighestDependency(fileModules));
+        let sortedFileModules = dep_res(fileModules);
         // let sortedFileModules = dep_res(fileModules);
         console.log();
         console.log(validateDependencyOrder(sortedFileModules));

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
+const loop = require('./tail.js');
 const Graph = require('./graph.js');
 
 module.exports = (function () {
@@ -39,6 +40,14 @@ module.exports = (function () {
         return list.indexOf(filePath) === i;
     }
 
+    function isUniqueFileModule(fileModule, i, fileModules) {
+        return fileModules.findIndex(fileModuleB => fileModuleB.filePath === fileModule.filePath) === i;
+    }
+
+    function mergeFileModules(fileModulesA, fileModulesB) {
+        return fileModulesA.concat(fileModulesB).filter(isUniqueFileModule);
+    }
+
     function isImmediateDependency(varName, dependencies) {
         let combinedDependencies = dependencies.reduce((combined, varName) => combined + varName, "");
         let match = combinedDependencies.match(RegExp(varName, "g"));
@@ -47,19 +56,29 @@ module.exports = (function () {
     }
 
     function fileModuleEqual(fileModuleA, fileModuleB) {
-        return fileModuleA.varName === fileModuleB.varName;
+        return fileModuleA.filePath === fileModuleB.filePath;
     }
 
     function includesFileModule(fileModules, fileModule) {
         return fileModules.some(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
     }
 
+    function includesDependencies(fileModules, fileModule) {
+        return fileModule.dependencies.some(dependencyFilePath => 
+            includesFileModule(fileModules, { filePath: dependencyFilePath })
+        );
+    }
+
     function getFileModuleIndex(fileModule, fileModules) {
         return fileModules.findIndex(fileModuleB => fileModuleEqual(fileModuleB, fileModule));
     }
 
+    function filePathToModule(filePath, fileModuleVerteces) {
+        return fileModuleVerteces[filePath];
+    }
+
     function isDependent(fileModuleA, fileModuleB) {
-        return fileModuleA.dependencies.indexOf(fileModuleB.varName) >= 0;
+        return fileModuleA.dependencies.indexOf(fileModuleB.filePath) >= 0;
     }
 
     function isBefore(fileModules, fileModuleA, fileModuleB) {
@@ -71,49 +90,40 @@ module.exports = (function () {
     function validateDependencyOrder(fileModules) {
         return fileModules.every(fileModule => {
             let fileModuleIndex = getFileModuleIndex(fileModule, fileModules);
-            let everyDependencyIsBefore = fileModule.dependencies.every(dependencyVarName => {
+            let everyDependencyIsBefore = fileModule.dependencies.every(dependencyfilePath => {
                 let dependencyModule = {
-                    varName: dependencyVarName
+                    filePath: dependencyfilePath
                 };
                 return isBefore(fileModules, dependencyModule, fileModule);
             });
 
-            console.log(everyDependencyIsBefore, fileModule.filePath, fileModule.dependencies);
+            if (!everyDependencyIsBefore)
+                console.log(everyDependencyIsBefore, fileModule.filePath, fileModule.dependencies);
 
             return everyDependencyIsBefore;
         });
     }
 
-    function getHighestDependency(fileModules) {
-        let vertex = fileModules.reduce((foundFileModule, fileModule, fileModules) => {
-            return fileModule.dependencies.length >= foundFileModule.dependencies.length
-                ? fileModule : foundFileModule;
-        }, fileModules[0]);
-        return vertex;
+    function getDeepestFileModules(fileModules, fileModuleVerteces) {
+        return fileModules.filter(fileModule => {
+            return fileModule.dependencies.length === 0 || fileModule.dependencies.every(dependencyFilePath => !fileModuleVerteces[dependencyFilePath]);
+        });
     }
 
-    function dep_res(fileModules) {
+    function dep_res(fileModules, fileModuleVerteces) {
         if (fileModules.length === 0)
             return [];
 
-        let highestDependency = getHighestDependency(fileModules);
-        let lowerDependencies = fileModules.filter(fileModule => fileModule.filePath !== highestDependency.filePath);
+        let deepestFileModules = getDeepestFileModules(fileModules, fileModuleVerteces);
+        let dependents = deepestFileModules.map(fileModule => {
+            let dependentModules = fileModule.dependents.map(dependentPath => filePathToModule(dependentPath, fileModuleVerteces));
+            let resolvedDeps = dep_res(dependentModules, fileModuleVerteces);
+            return resolvedDeps;
+        });
 
-        console.log(highestDependency.filePath);
+        console.log(dependents.length, deepestFileModules.length);
 
-        return dep_res(lowerDependencies).concat([highestDependency]);
-    }
-
-    function quickSort(predicate, items) {
-        if (items.length === 0)
-            return [];
-
-        let pivot = items[0];
-        let tail = items.slice(1);
-        let lessThanPivot = tail.filter(item => predicate(item, pivot));
-        let greaterThanPivot = tail.filter(item => !predicate(item, pivot));
-
-        return quickSort(predicate, lessThanPivot).concat([pivot]).concat(quickSort(predicate, greaterThanPivot));
+        return mergeFileModules(dependents, deepestFileModules);
     }
 
     function getVarName(filePath) {
@@ -126,6 +136,12 @@ module.exports = (function () {
         return matches[1] || "";
     }
 
+    function getDependents(fileModuleA, fileModules) {
+        return fileModules.filter(fileModuleB => {
+            return isDependent(fileModuleB, fileModuleA);
+        }).map(fileModule => fileModule.filePath);
+    }
+
     function getDependencies(fileModule, varNames) {
         let fileContent = fs.readFileSync(fileModule.filePath).toString();
 
@@ -134,11 +150,8 @@ module.exports = (function () {
             let matches = fileContent.match(dependencyRegex) || [];
             let dependency = matches[1] || null;
 
-            if (dependency && dependency !== fileModule.varName) {
-                return dependencies
-                    .concat([dependency])
-                    .filter(isUnique);
-                // .filter((varName, i, dependencies) => isImmediateDependency(varName, dependencies));
+            if (dependency && dependency !== fileModule.varName && !dependencies.includes(dependency)) {
+                dependencies.push(dependency);
             }
 
             return dependencies;
@@ -180,22 +193,18 @@ module.exports = (function () {
             fileModule.dependencies.map(varName =>
                 modules.find(fileModule => fileModule.varName === varName).filePath
             )
+        )).map((fileModule, i, fileModules) => objectSet(
+            fileModule,
+            "dependents",
+            getDependents(fileModule, fileModules)
         ));
         let fileModuleVertices = fileModules.reduce((vertices, fileModule) => {
             let key = fileModule.filePath;
             vertices[key] = fileModule;
             return vertices;
         }, {});
-        let fileModuleEdges = fileModules.reduce((edges, fileModule) => {
-            return fileModule.dependencies.reduce((edges, dependencyVarName) => {
-                let edgeString = fileModule.filePath + '->' + dependencyVarName;
-                edges[edgeString] = {};
-                return edges;
-            }, edges);
-        }, []);
-        // let fileModuleGraph = Graph(fileModuleVertices, fileModuleEdges);
-        console.log(getHighestDependency(fileModules));
-        let sortedFileModules = dep_res(fileModules);
+        console.log(getDeepestFileModules(fileModules, fileModuleVertices));
+        let sortedFileModules = dep_res(fileModules, fileModuleVertices);
         // let sortedFileModules = dep_res(fileModules);
         console.log();
         console.log(validateDependencyOrder(sortedFileModules));

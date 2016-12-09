@@ -44,37 +44,8 @@ module.exports = (function () {
         return fileModules.findIndex(fileModuleB => fileModuleB.filePath === fileModule.filePath) === i;
     }
 
-    function isImmediateDependency(varName, dependencies) {
-        let combinedDependencies = dependencies.reduce((combined, varName) => combined + varName, "");
-        let match = combinedDependencies.match(RegExp(varName, "g"));
-        let len = (match || []).length;
-        return len === 1;
-    }
-
     function fileModuleEqual(fileModuleA, fileModuleB) {
         return fileModuleA.filePath === fileModuleB.filePath;
-    }
-
-    function includesFileModule(fileModules, fileModule) {
-        return !!fileModules.find(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
-    }
-
-    function includesAllDependencies(fileModules, fileModule) {
-        return fileModule.dependencies.every(dependencyFilePath =>
-            includesFileModule(fileModules, { filePath: dependencyFilePath })
-        );
-    }
-
-    function includesSomeDependencies(fileModules, fileModule) {
-        return fileModule.dependencies.some(dependencyFilePath =>
-            includesFileModule(fileModules, { filePath: dependencyFilePath })
-        );
-    }
-
-    function includesDependents(fileModules, fileModule) {
-        return fileModule.dependents.every(dependentFilePath =>
-            includesFileModule(fileModules, { filePath: dependentFilePath })
-        );
     }
 
     function getFileModuleIndex(fileModule, fileModules) {
@@ -91,24 +62,33 @@ module.exports = (function () {
         return indexA < indexB;
     }
 
-    function isRootModule(fileModule, fileModules) {
-        return fileModule.dependencies.length === 0 || !includesAllDependencies(fileModules, fileModule);
-    }
-
-    function trimDependencies(fileModule) {
-        let dependencyFileNames = fileModule.dependencies.map(dependencyFilePath =>
+    function trimDependencies(dependencies) {
+        let dependencyFileNames = dependencies.map(dependencyFilePath =>
             path.posix.basename(dependencyFilePath, '.js')
         );
         let combinedDependencies = dependencyFileNames.reduce((combined, dependencyFileName) => combined + dependencyFileName, "");
-        let uniqueDependencies = fileModule.dependencies.filter(dependencyFilePath => {
+        return dependencies.filter(dependencyFilePath => {
             let fileName = path.posix.basename(dependencyFilePath, '.js');
             let match = combinedDependencies.match(RegExp(fileName, "g"));
             let len = (match || []).length;
             return len === 1;
         });
-        fileModule.dependencies = uniqueDependencies;
+    }
 
-        return fileModule;
+    function dep_res(fileModule, fileModuleVerteces) {
+        if (fileModule.dependents.length === 0)
+            return [fileModule];
+
+        let dependentModules = fileModule.dependents.map(dependentFilePath => fileModuleVerteces[dependentFilePath]);
+        let resolvedDependents = dependentModules.reduce((resolved, dependentModule) => resolved.concat(dep_res(dependentModule, fileModuleVerteces)), []);
+        let result = [fileModule].concat(resolvedDependents);
+
+        console.log(fileModule.filePath);
+        if (fileModule.dependents.includes("src/kidly/controllers/kidly.controllers.ProductDetailsController.js"))
+            console.log('-');
+        console.log(result.length, dependentModules.length, resolvedDependents.length);
+
+        return result;
     }
 
     function validateDependencyOrder(fileModules) {
@@ -126,24 +106,6 @@ module.exports = (function () {
 
             return everyDependencyIsBefore;
         });
-    }
-
-    function getRootFileModules(fileModules) {
-        return fileModules.filter(fileModule => isRootModule(fileModule, fileModules));
-    }
-
-    function dep_res(fileModules) {
-        if (fileModules.length === 0)
-            return [];
-
-        let rootFileModules = getRootFileModules(fileModules);
-        let nonRootFileModules = fileModules.filter(fileModule => !includesFileModule(rootFileModules, fileModule));
-        let result = rootFileModules.concat(dep_res(nonRootFileModules)).filter(isUniqueFileModule);
-
-        console.log(rootFileModules.map(fileModule => fileModule.filePath));
-        console.log(result.length, rootFileModules.length, nonRootFileModules.length);
-
-        return result;
     }
 
     function getVarName(filePath) {
@@ -213,19 +175,26 @@ module.exports = (function () {
             fileModule.dependencies.map(varName =>
                 modules.find(fileModule => fileModule.varName === varName).filePath
             )
-        )).map((fileModule, i, modules) =>
-            trimDependencies(fileModule)
-            ).map((fileModule, i, fileModules) => objectSet(
-                fileModule,
-                "dependents",
-                getDependents(fileModule, fileModules)
-            ));
+        )).map((fileModule, i, modules) => objectSet(
+            fileModule,
+            "dependencies",
+            trimDependencies(fileModule.dependencies)
+        )).map((fileModule, i, fileModules) => objectSet(
+            fileModule,
+            "dependents",
+            getDependents(fileModule, fileModules)
+        ));
         let fileModuleVertices = fileModules.reduce((vertices, fileModule) => {
             let key = fileModule.filePath;
             vertices[key] = fileModule;
             return vertices;
         }, {});
-        let sortedFileModules = dep_res(fileModules);
+
+        console.log(fileModules.filter(fileModule => fileModule.dependents.includes('src/kidly/controllers/kidly.controllers.ProductDetailsController.js')));
+        console.log(fileModuleVertices['src/kidly/controllers/kidly.controllers.ProductDetailsController.js']);
+        console.log(fileModuleVertices['src/kidly/initialisers/kidly.initialisers.globalInitialiser.js']);
+        let rootDependency = fileModules.find(fileModule => fileModule.dependencies.length === 0);
+        let sortedFileModules = dep_res(rootDependency, fileModuleVertices);
         let fileModulesValidate = validateDependencyOrder(sortedFileModules);
 
         console.log();

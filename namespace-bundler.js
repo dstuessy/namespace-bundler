@@ -1,8 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
-const loop = require('./tail.js');
-const Graph = require('./graph.js');
 
 module.exports = (function () {
     'use strict';
@@ -48,6 +46,10 @@ module.exports = (function () {
         return fileModuleA.filePath === fileModuleB.filePath;
     }
 
+    function includesFileModule(fileModules, fileModule) {
+        return !!fileModules.find(fileModuleB => fileModuleEqual(fileModule, fileModuleB));
+    }
+
     function getFileModuleIndex(fileModule, fileModules) {
         return fileModules.findIndex(fileModuleB => fileModuleEqual(fileModuleB, fileModule));
     }
@@ -60,6 +62,14 @@ module.exports = (function () {
         let indexA = getFileModuleIndex(fileModuleA, fileModules);
         let indexB = getFileModuleIndex(fileModuleB, fileModules);
         return indexA < indexB;
+    }
+
+    function isRootModule(fileModule, fileModules) {
+        let hasNoDependencies = fileModule.dependencies.length === 0;
+        let allDependenciesMissing = fileModule.dependencies.every(dependency => !includesFileModule(fileModules, {
+            filePath: dependency
+        })); // returns true if fileModules is empty
+        return hasNoDependencies || allDependenciesMissing;
     }
 
     function trimDependencies(dependencies) {
@@ -75,18 +85,17 @@ module.exports = (function () {
         });
     }
 
-    function dep_res(fileModule, fileModuleVerteces) {
-        if (fileModule.dependents.length === 0)
-            return [fileModule];
+    function getRootFileModules(fileModules) {
+        return fileModules.filter(fileModule => isRootModule(fileModule, fileModules));
+    }
 
-        let dependentModules = fileModule.dependents.map(dependentFilePath => fileModuleVerteces[dependentFilePath]);
-        let resolvedDependents = dependentModules.reduce((resolved, dependentModule) => resolved.concat(dep_res(dependentModule, fileModuleVerteces)), []);
-        let result = [fileModule].concat(resolvedDependents);
+    function dep_res(fileModules) {
+        if (fileModules.length === 0)
+            return [];
 
-        console.log(fileModule.filePath);
-        if (fileModule.dependents.includes("src/kidly/controllers/kidly.controllers.ProductDetailsController.js"))
-            console.log('-');
-        console.log(result.length, dependentModules.length, resolvedDependents.length);
+        let rootFileModules = getRootFileModules(fileModules);
+        let nonRootFileModules = fileModules.filter(fileModule => !includesFileModule(rootFileModules, fileModule));
+        let result = rootFileModules.concat(dep_res(nonRootFileModules)).filter(isUniqueFileModule);
 
         return result;
     }
@@ -100,9 +109,6 @@ module.exports = (function () {
                 };
                 return isBefore(fileModules, dependencyModule, fileModule);
             });
-
-            if (!everyDependencyIsBefore)
-                console.log(everyDependencyIsBefore, fileModule.filePath, fileModule.dependencies);
 
             return everyDependencyIsBefore;
         });
@@ -184,21 +190,10 @@ module.exports = (function () {
             "dependents",
             getDependents(fileModule, fileModules)
         ));
-        let fileModuleVertices = fileModules.reduce((vertices, fileModule) => {
-            let key = fileModule.filePath;
-            vertices[key] = fileModule;
-            return vertices;
-        }, {});
 
-        console.log(fileModules.filter(fileModule => fileModule.dependents.includes('src/kidly/controllers/kidly.controllers.ProductDetailsController.js')));
-        console.log(fileModuleVertices['src/kidly/controllers/kidly.controllers.ProductDetailsController.js']);
-        console.log(fileModuleVertices['src/kidly/initialisers/kidly.initialisers.globalInitialiser.js']);
         let rootDependency = fileModules.find(fileModule => fileModule.dependencies.length === 0);
-        let sortedFileModules = dep_res(rootDependency, fileModuleVertices);
+        let sortedFileModules = dep_res(fileModules);
         let fileModulesValidate = validateDependencyOrder(sortedFileModules);
-
-        console.log();
-        console.log(fileModulesValidate);
 
         if (!fileModulesValidate) {
             throw new Error('File module dependency resolve doesn\'t validate');
@@ -207,11 +202,18 @@ module.exports = (function () {
         let sortedFileContents = sortedFileModules.map(fileModule => fs.readFileSync(fileModule.filePath).toString());
         let bundledFileContents = sortedFileContents.reduce((bundle, fileContents) => `${bundle}\n\n\n${fileContents}`, '');
 
+        // Take all strict mode notes and put them at the beginning of the bundle content
+        if (bundledFileContents.match(/['"]use strict['"];/g)) {
+            bundledFileContents = bundledFileContents.replace(/['"]use strict['"];/g, '');
+            bundledFileContents = "'use strict';" + bundledFileContents;
+        }
+
         mkdirp('dist', err => {
             if (err)
-                throw new Error(err);
+                throw new Error('namespace-bundler: ' + err);
             else {
                 fs.writeFileSync('dist/bundle.js', bundledFileContents);
+                callback();
             }
         });
     };

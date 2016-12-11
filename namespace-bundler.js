@@ -89,13 +89,13 @@ module.exports = (function () {
         return fileModules.filter(fileModule => isRootModule(fileModule, fileModules));
     }
 
-    function dep_res(fileModules) {
+    function resolveDependencies(fileModules) {
         if (fileModules.length === 0)
             return [];
 
         let rootFileModules = getRootFileModules(fileModules);
         let nonRootFileModules = fileModules.filter(fileModule => !includesFileModule(rootFileModules, fileModule));
-        let result = rootFileModules.concat(dep_res(nonRootFileModules)).filter(isUniqueFileModule);
+        let result = rootFileModules.concat(resolveDependencies(nonRootFileModules)).filter(isUniqueFileModule);
 
         return result;
     }
@@ -203,7 +203,7 @@ module.exports = (function () {
             "dependents",
             getDependents(fileModule, fileModules)
         ));
-        let sortedFileModules = dep_res(fileModules);
+        let sortedFileModules = resolveDependencies(fileModules);
         let fileModulesValidate = validateDependencyOrder(sortedFileModules);
 
         if (!fileModulesValidate) {

@@ -190,13 +190,11 @@ module.exports = (function () {
             "dependents",
             getDependents(fileModule, fileModules)
         ));
-
-        let rootDependency = fileModules.find(fileModule => fileModule.dependencies.length === 0);
         let sortedFileModules = dep_res(fileModules);
         let fileModulesValidate = validateDependencyOrder(sortedFileModules);
 
         if (!fileModulesValidate) {
-            throw new Error('File module dependency resolve doesn\'t validate');
+            throw new Error('namespace-bundler: Could not resolve namespace dependency\n');
         }
 
         let sortedFileContents = sortedFileModules.map(fileModule => fs.readFileSync(fileModule.filePath).toString());
@@ -213,7 +211,7 @@ module.exports = (function () {
                 throw new Error('namespace-bundler: ' + err);
             else {
                 fs.writeFileSync('dist/bundle.js', bundledFileContents);
-                callback();
+                callback(bundledFileContents);
             }
         });
     };

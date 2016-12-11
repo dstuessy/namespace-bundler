@@ -161,8 +161,21 @@ module.exports = (function () {
             .filter(isUnique);
     }
 
-    Bundler.bundle = function bundle(dirPath, callback) {
-        let filePaths = getFilePaths(dirPath, callback);
+    function writeBundleToFile(filePath, bundleContent, callback) {
+        let dirPath = path.dirname(filePath);
+
+        mkdirp(dirPath, err => {
+            if (err)
+                throw new Error('namespace-bundler: ' + err);
+            else {
+                fs.writeFileSync(filePath, bundleContent);
+                callback(bundleContent);
+            }
+        });
+    }
+
+    Bundler.bundle = function bundle(dirPath) {
+        let filePaths = getFilePaths(dirPath);
         let fileModules = filePaths.map(filePath => {
             return {
                 filePath: filePath,
@@ -206,14 +219,12 @@ module.exports = (function () {
             bundledFileContents = "'use strict';" + bundledFileContents;
         }
 
-        mkdirp('dist', err => {
-            if (err)
-                throw new Error('namespace-bundler: ' + err);
-            else {
-                fs.writeFileSync('dist/bundle.js', bundledFileContents);
-                callback(bundledFileContents);
+        return {
+            value: bundledFileContents,
+            writeToFile: function(filePath, callback) {
+                writeBundleToFile(filePath, bundledFileContents, callback);
             }
-        });
+        };
     };
 
     return Bundler;

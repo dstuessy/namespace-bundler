@@ -2,4 +2,6 @@
 
 const Bundler = require('./namespace-bundler.js');
 
-Bundler.bundle('src').writeToFile('dist/bundle.js', (bundledContent) => console.log(bundledContent.length));
+Bundler.bundle('src').writeToFile('dist/bundle.js');
+
+console.log('written');

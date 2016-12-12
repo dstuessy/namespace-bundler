@@ -68,7 +68,7 @@ module.exports = (function () {
         let hasNoDependencies = fileModule.dependencies.length === 0;
         let allDependenciesMissing = fileModule.dependencies.every(dependency => !includesFileModule(fileModules, {
             filePath: dependency
-        })); // returns true if fileModules is empty
+        })); // returns true if fileModule.dependencies is empty
         return hasNoDependencies || allDependenciesMissing;
     }
 

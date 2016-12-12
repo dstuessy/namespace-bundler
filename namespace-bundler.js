@@ -30,10 +30,6 @@ module.exports = (function () {
         return clone;
     }
 
-    function objectReduce(fn, start, obj) {
-        return Object.keys(obj).reduce((acc, key) => fn(acc, obj[key], key), start);
-    }
-
     function isUnique(filePath, i, list) {
         return list.indexOf(filePath) === i;
     }

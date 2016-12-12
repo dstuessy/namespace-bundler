@@ -1,8 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
+const esprima = require('esprima');
+const escope = require('escope');
+const estraverse = require('estraverse');
+const eslevels = require('eslevels');
 
-module.exports = (function () {
+module.exports = (function() {
     'use strict';
 
     const Bundler = {};
@@ -81,6 +85,16 @@ module.exports = (function () {
         });
     }
 
+    function hasCircularDependency(fileModules) {
+        if (fileModules.length === 0)
+            return [];
+
+        let firstHalf = fileModules.slice(0, fileModules.length / 2);
+        let secondHalf = fileModules.slice(filemodules.length / 2);
+
+        return hasCircularDependency(firstHalf) || hasCircularDependency(secondHalf);
+    }
+
     function getRootFileModules(fileModules) {
         return fileModules.filter(fileModule => isRootModule(fileModule, fileModules));
     }
@@ -128,6 +142,22 @@ module.exports = (function () {
 
     function getDependencies(fileModule, varNames) {
         let fileContent = fs.readFileSync(fileModule.filePath).toString();
+
+        if (fileModule.filePath === 'src/kidly/views/kidly.views.SizeSelectView.js') {
+            let parsedContent = esprima.parse(fileContent);
+            let filteredParsedContent = estraverse.replace(parsedContent, {
+                enter: function(node, parent) {
+                    if (node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration')
+                        node.body.body = { type: 'BlockStatement', body: { type: 'ReturnStatement', argument: null } };
+                    return node;
+                },
+                leave: function(node, parent) {
+                }
+            });
+            let stringified = JSON.stringify(filteredParsedContent, null, 4)
+            console.log(stringified);
+            console.log();
+        }
 
         return varNames.reduce((dependencies, varName) => {
             let dependencyRegex = RegExp(`[^\w\.]?(${varName})`);

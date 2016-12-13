@@ -157,17 +157,11 @@ module.exports = (function () {
             .filter(isUnique);
     }
 
-    function writeBundleToFile(filePath, bundleContent, callback) {
+    function writeBundleToFile(filePath, bundleContent) {
         let dirPath = path.dirname(filePath);
 
-        mkdirp(dirPath, err => {
-            if (err)
-                throw new Error('namespace-bundler: ' + err);
-            else {
-                fs.writeFileSync(filePath, bundleContent);
-                callback(bundleContent);
-            }
-        });
+        mkdirp.sync(dirPath);
+        fs.writeFileSync(filePath, bundleContent);
     }
 
     Bundler.bundle = function bundle(dirPath) {
@@ -217,8 +211,8 @@ module.exports = (function () {
 
         return {
             value: bundledFileContents,
-            writeToFile: function(filePath, callback) {
-                writeBundleToFile(filePath, bundledFileContents, callback);
+            writeToFile: function(filePath) {
+                writeBundleToFile(filePath, bundledFileContents);
             }
         };
     };

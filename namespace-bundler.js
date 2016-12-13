@@ -154,7 +154,7 @@ module.exports = (function() {
                 leave: function(node, parent) {
                 }
             });
-            let stringified = JSON.stringify(filteredParsedContent, null, 4)
+            let stringified = JSON.stringify(filteredParsedContent, null, 4);
             console.log(stringified);
             console.log();
         }

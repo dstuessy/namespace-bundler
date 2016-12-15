@@ -5,7 +5,7 @@ const esprima = require('esprima');
 const escodegen = require('escodegen');
 const estraverse = require('estraverse');
 
-module.exports = (function() {
+module.exports = (function () {
     'use strict';
 
     const Bundler = {};

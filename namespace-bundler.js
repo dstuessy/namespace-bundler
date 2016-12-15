@@ -236,7 +236,7 @@ module.exports = (function() {
 
         return {
             value: bundledFileContents,
-            writeToFile: function(filePath) {
+            writeToFile: filePath => {
                 writeBundleToFile(filePath, bundledFileContents);
             }
         };

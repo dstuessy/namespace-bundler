@@ -2,9 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
 const esprima = require('esprima');
-const escope = require('escope');
+const escodegen = require('escodegen');
 const estraverse = require('estraverse');
-const eslevels = require('eslevels');
 
 module.exports = (function() {
     'use strict';
@@ -142,26 +141,22 @@ module.exports = (function() {
 
     function getDependencies(fileModule, varNames) {
         let fileContent = fs.readFileSync(fileModule.filePath).toString();
-
-        if (fileModule.filePath === 'src/kidly/views/kidly.views.SizeSelectView.js') {
-            let parsedContent = esprima.parse(fileContent);
-            let filteredParsedContent = estraverse.replace(parsedContent, {
-                enter: function(node, parent) {
-                    if (node.type === 'FunctionExpression' || node.type === 'FunctionDeclaration')
-                        node.body.body = { type: 'BlockStatement', body: { type: 'ReturnStatement', argument: null } };
-                    return node;
-                },
-                leave: function(node, parent) {
+        let contentNodes = esprima.parse(fileContent);
+        let foundVarNames = [];
+        let filteredContentNodes = estraverse.replace(contentNodes, {
+            enter: node => {
+                if (node.type === "AssignmentExpression" && node.right.type === "FunctionExpression") {
+                    node.right.body.body = [];
+                    node.right.params = [];
                 }
-            });
-            let stringified = JSON.stringify(filteredParsedContent, null, 4);
-            console.log(stringified);
-            console.log();
-        }
+                return node;
+            }
+        });
+        let filteredContent = escodegen.generate(filteredContentNodes);
 
         return varNames.reduce((dependencies, varName) => {
             let dependencyRegex = RegExp(`[^\w\.]?(${varName})`);
-            let matches = fileContent.match(dependencyRegex) || [];
+            let matches = filteredContent.match(dependencyRegex) || [];
             let dependency = matches[1] || null;
 
             if (dependency && dependency !== fileModule.varName && !dependencies.includes(dependency)) {

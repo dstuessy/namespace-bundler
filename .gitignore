@@ -1,5 +1,5 @@
 *.swp
 *.swo
 node_modules/**
-src/**
-dist/**
+dev/**
+!dev/dev-readme.md

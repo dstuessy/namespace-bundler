@@ -7,10 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Daniel Stuessy",
-  "license": "ISC",
+  "license": "GPL-3.0",
   "devDependencies": {
     "escope": "^3.6.0",
-    "eslevels": "^0.4.0",
     "esprima": "^3.1.2",
     "mkdirp": "^0.5.1"
   }

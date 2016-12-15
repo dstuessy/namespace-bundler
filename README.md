@@ -2,7 +2,11 @@
 
 A JavaScript bundler based on [namespaces](http://adamsilver.io/articles/javascript-namespacing/).
 The goal is to have a simple, easy to use bundler that honors namespace patterns without 
-the need of `import` or `require` at the top of JavaScript files.
+the need of `import` or `require` at the top of JavaScript files. Another way of putting it
+is to have a bundler that doesn't touch your source code unless it has to -- as with `'use strict';`
+statements -- and just puts them together into one file. One major benefit with this is having
+legible JavaScript in browser dev tools, including legacy ones like IE8; yes, I know, 
+but [people still use it](http://caniuse.com/usage_table.php).
 
 
 ## NPM

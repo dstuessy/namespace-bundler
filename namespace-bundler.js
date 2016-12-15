@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const mkdirp = require('mkdirp');
+const esprima = require('esprima');
+const escodegen = require('escodegen');
+const estraverse = require('estraverse');
 
-module.exports = (function () {
+module.exports = (function() {
     'use strict';
 
     const Bundler = {};
@@ -81,6 +84,16 @@ module.exports = (function () {
         });
     }
 
+    function hasCircularDependency(fileModules) {
+        if (fileModules.length === 0)
+            return [];
+
+        let firstHalf = fileModules.slice(0, fileModules.length / 2);
+        let secondHalf = fileModules.slice(filemodules.length / 2);
+
+        return hasCircularDependency(firstHalf) || hasCircularDependency(secondHalf);
+    }
+
     function getRootFileModules(fileModules) {
         return fileModules.filter(fileModule => isRootModule(fileModule, fileModules));
     }
@@ -128,10 +141,22 @@ module.exports = (function () {
 
     function getDependencies(fileModule, varNames) {
         let fileContent = fs.readFileSync(fileModule.filePath).toString();
+        let contentNodes = esprima.parse(fileContent);
+        let foundVarNames = [];
+        let filteredContentNodes = estraverse.replace(contentNodes, {
+            enter: node => {
+                if (node.type === "AssignmentExpression" && node.right.type === "FunctionExpression") {
+                    node.right.body.body = [];
+                    node.right.params = [];
+                }
+                return node;
+            }
+        });
+        let filteredContent = escodegen.generate(filteredContentNodes);
 
         return varNames.reduce((dependencies, varName) => {
             let dependencyRegex = RegExp(`[^\w\.]?(${varName})`);
-            let matches = fileContent.match(dependencyRegex) || [];
+            let matches = filteredContent.match(dependencyRegex) || [];
             let dependency = matches[1] || null;
 
             if (dependency && dependency !== fileModule.varName && !dependencies.includes(dependency)) {

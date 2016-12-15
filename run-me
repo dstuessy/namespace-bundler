@@ -2,6 +2,6 @@
 
 const Bundler = require('./namespace-bundler.js');
 
-Bundler.bundle('src', () => {
-    console.log("done");
-});
+Bundler.bundle('dev/src').writeToFile('dev/dist/bundle.js');
+
+console.log('written');

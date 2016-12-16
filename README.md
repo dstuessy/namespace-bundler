@@ -53,3 +53,11 @@ Momentarily this method is synchronous. However, this will change in the future 
 Feel free to contribute source code and ideas to this project. For testing and development purposes, 
 a directory called `dev` is available with its contents ignored -- except `dev-readme.md`. 
 This is for convenience whilst not bloating the project with dead source code.
+
+### Visual Studio Code
+
+A debug configuration for development purposes has been set up under `.vscode/launch.json`. This way the `run-me` file can be executed in debug mode.
+
+### Other Dev Tools
+
+If other development tools are being used, `run-me` can be executed on any terminal. See nodejs's [page on debugging](https://nodejs.org/api/debugger.html) using a terminal.

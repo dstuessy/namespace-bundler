@@ -43,6 +43,16 @@ Momentarily this method is synchronous. However, this will change in the future 
 
 
 
+## Install
+
+Simply install using NPM:
+
+``` shell
+npm install --save-dev namespace-bundler
+```
+
+
+
 ## Development
 
 Feel free to contribute source code and ideas to this project. For testing and development purposes, 

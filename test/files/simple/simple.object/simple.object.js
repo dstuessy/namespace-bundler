@@ -1,0 +1,3 @@
+'use strict';
+
+Simple.Object = {};

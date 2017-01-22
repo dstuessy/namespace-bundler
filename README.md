@@ -19,7 +19,7 @@ Simply include namespace-bundler as a node module or require the file directly, 
 ``` javascript
 const Bundler = require('namespace-bundler');
 
-let bundledFileContent = Bundler.bundle('path/to/source/directory').value;
+let bundledFileContent = Bundler.bundle('/absolute/path/to/source/directory').value;
 ```
 
 The `bundle` method returns a plain object with two properties, `value` and `writeToFile`:
@@ -36,7 +36,7 @@ object by the `bundle` method; see "How to use" if you haven't read about the `b
 ``` javascript
 const Bundler = require('namespace-bundler');
 
-Bundler.bundle('path/to/source/directory').writeToFile('path/to/destination/file');
+Bundler.bundle('/absolute/path/to/source/directory').writeToFile('/absolute/path/to/destination/file');
 ```
 
 Momentarily this method is synchronous. However, this will change in the future to be asynchronous, with an optional synchronous method.

@@ -34,7 +34,7 @@ just use the synchronous `writeToFile` method of the returned
 object by the `bundle` method; see "How to use" if you haven't read about the `bundle` method.
 
 ``` javascript
-const Bundler = require('./path/to/libs/namespace-bundler.js');
+const Bundler = require('namespace-bundler');
 
 Bundler.bundle('path/to/source/directory').writeToFile('path/to/destination/file');
 ```

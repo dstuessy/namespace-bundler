@@ -1,0 +1,9 @@
+*.swp
+*.swo
+node_modules/**
+dev/**
+!dev/dev-readme.md
+test/**
+.vscode/**
+run-me
+.travis.yml

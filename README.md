@@ -1,5 +1,7 @@
 # namespace-bundler
 
+[![Master Build Status](https://travis-ci.org/dstuessy/namespace-bundler.svg?branch=master)](https://travis-ci.org/dstuessy/namespace-bundler)
+
 A JavaScript bundler based on [namespaces](http://adamsilver.io/articles/javascript-namespacing/).
 The goal is to have a simple, easy to use bundler that honors namespace patterns without 
 the need of `import` or `require` at the top of JavaScript files. Another way of putting it

@@ -190,8 +190,7 @@ module.exports = (function () {
     }
 
     Bundler.bundle = function bundle(dirPath) {
-        let fullDirPath = `${__dirname}/${dirPath}`;
-        let filePaths = getFilePaths(fullDirPath);
+        let filePaths = getFilePaths(dirPath);
         let fileModules = filePaths.map(filePath => {
             return {
                 filePath: filePath,

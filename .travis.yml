@@ -1,0 +1,4 @@
+language: node_js 
+rvm:
+ - "6.9.1"
+script: npm run test

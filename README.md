@@ -11,20 +11,13 @@ legible JavaScript in browser dev tools, including legacy ones like IE8; yes, I 
 but [people still use it](http://caniuse.com/usage_table.php).
 
 
-## NPM
-
-A NPM package is still in the making. 
-For now it is necessary to include the `namespace-bundler.js` file in a project 
-and require the file directly with node's `require` function; see "How to use" for an example.
-
-
 
 ## How to use
 
 Simply include namespace-bundler as a node module or require the file directly, then call its `bundle` method:
 
 ``` javascript
-const Bundler = require('./path/to/libs/namespace-bundler.js');
+const Bundler = require('namespace-bundler');
 
 let bundledFileContent = Bundler.bundle('path/to/source/directory').value;
 ```
@@ -41,12 +34,22 @@ just use the synchronous `writeToFile` method of the returned
 object by the `bundle` method; see "How to use" if you haven't read about the `bundle` method.
 
 ``` javascript
-const Bundler = require('./path/to/libs/namespace-bundler.js');
+const Bundler = require('namespace-bundler');
 
 Bundler.bundle('path/to/source/directory').writeToFile('path/to/destination/file');
 ```
 
 Momentarily this method is synchronous. However, this will change in the future to be asynchronous, with an optional synchronous method.
+
+
+
+## Install
+
+Simply install using NPM:
+
+``` shell
+npm install --save-dev namespace-bundler
+```
 
 
 

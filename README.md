@@ -22,7 +22,7 @@ const Bundler = require('namespace-bundler');
 let bundledFileContent = Bundler.bundle('/absolute/path/to/source/directory').value;
 ```
 
-The `bundle` method returns a plain object with two properties, `value` and `writeToFile`:
+The `bundle` method returns a plain object with two properties, `value` and `writeToFile`:
 
 - `value` is a string consisting of all the file contents in the target directly, bundled in order of dependency.
 - `writeToFile` simply writes the `value` synchronously to a target file path; see "Write to file" for more details.
